@@ -5,6 +5,7 @@
   "route": {
     "rules": [
       {
+        "tag": "rule-a",
         "inbound": [
           "mixed-in"
         ],
@@ -119,6 +120,10 @@
     (`source_geoip` || `source_ip_cidr`) &&  
     (`source_port` || `source_port_range`) &&  
     `other fields`
+
+#### tag
+
+Tag of rule, will take instead of item string when not empty.
 
 #### inbound
 
