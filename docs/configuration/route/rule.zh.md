@@ -5,6 +5,7 @@
   "route": {
     "rules": [
       {
+        "tag": "rule-a",
         "inbound": [
           "mixed-in"
         ],
@@ -117,6 +118,10 @@
     (`source_geoip` || `source_ip_cidr`) &&  
     (`source_port` || `source_port_range`) &&  
     `other fields`
+
+#### tag
+
+规则标签，如果被设置则会替换输出中的项目详情。
 
 #### inbound
 
