@@ -97,6 +97,10 @@ func (s *URLTest) Now() string {
 	return s.group.Select(N.NetworkTCP).Tag()
 }
 
+func (s *URLTest) SelectedOutbound(network string) adapter.Outbound {
+	return s.group.Select(network)
+}
+
 func (s *URLTest) All() []string {
 	return s.tags
 }

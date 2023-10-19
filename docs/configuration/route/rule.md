@@ -91,6 +91,7 @@
           "00:00:00:00:00:00"
         ],
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       },
       {
@@ -98,6 +99,7 @@
         "mode": "and",
         "rules": [],
         "invert": false,
+        "skip_resolve": false,
         "outbound": "direct"
       }
     ]
@@ -258,6 +260,10 @@ Match WiFi BSSID.
 #### invert
 
 Invert match result.
+
+#### skip_resolve
+
+Skip resolving domain.
 
 #### outbound
 
