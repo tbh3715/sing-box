@@ -27,6 +27,7 @@ import (
 
 var (
 	_ adapter.Outbound                = (*WireGuard)(nil)
+	_ adapter.OutboundUseIP           = (*WireGuard)(nil)
 	_ adapter.InterfaceUpdateListener = (*WireGuard)(nil)
 )
 
@@ -244,4 +245,8 @@ func (w *WireGuard) Close() error {
 	}
 	w.tunDevice.Close()
 	return nil
+}
+
+func (w *WireGuard) UseIP() bool {
+	return true
 }

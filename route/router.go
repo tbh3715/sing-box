@@ -23,7 +23,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/ntp"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/outbound"
+	O "github.com/sagernet/sing-box/outbound"
 	"github.com/sagernet/sing-box/transport/fakeip"
 	"github.com/sagernet/sing-dns"
 	mux "github.com/sagernet/sing-mux"
@@ -836,12 +836,12 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 
 func (r *Router) match(ctx context.Context, metadata *adapter.InboundContext, defaultOutbound adapter.Outbound) (context.Context, adapter.Rule, adapter.Outbound, error) {
 	matchRule, matchOutbound := r.match0(ctx, metadata, defaultOutbound)
-	if contextOutbound, loaded := outbound.TagFromContext(ctx); loaded {
+	if contextOutbound, loaded := O.TagFromContext(ctx); loaded {
 		if contextOutbound == matchOutbound.Tag() {
 			return nil, nil, nil, E.New("connection loopback in outbound/", matchOutbound.Type(), "[", matchOutbound.Tag(), "]")
 		}
 	}
-	ctx = outbound.ContextWithTag(ctx, matchOutbound.Tag())
+	ctx = O.ContextWithTag(ctx, matchOutbound.Tag())
 	return ctx, matchRule, matchOutbound, nil
 }
 
@@ -877,17 +877,45 @@ func (r *Router) match0(ctx context.Context, metadata *adapter.InboundContext, d
 			metadata.ProcessInfo = processInfo
 		}
 	}
+	resolveStatus := -1
+	if metadata.Destination.IsFqdn() && len(metadata.DestinationAddresses) == 0 {
+		resolveStatus = 0
+	}
 	for i, rule := range r.rules {
+		if !rule.SkipResolve() && resolveStatus == 0 && rule.UseIPRule() {
+			addresses, err := r.LookupDefault(adapter.WithContext(ctx, metadata), metadata.Destination.Fqdn)
+			resolveStatus = 2
+			if err == nil {
+				resolveStatus = 1
+				metadata.DestinationAddresses = addresses
+			}
+		}
 		if rule.Match(metadata) {
 			detour := rule.Outbound()
 			r.logger.DebugContext(ctx, "match[", i, "] ", rule.String(), " => ", detour)
 			if outbound, loaded := r.Outbound(detour); loaded {
+				if resolveStatus == 1 && !r.MustUseIP(outbound, metadata.Network) {
+					metadata.DestinationAddresses = []netip.Addr{}
+				}
 				return rule, outbound
 			}
 			r.logger.ErrorContext(ctx, "outbound not found: ", detour)
 		}
 	}
+	if resolveStatus == 1 && !r.MustUseIP(defaultOutbound, metadata.Network) {
+		metadata.DestinationAddresses = []netip.Addr{}
+	}
 	return nil, defaultOutbound
+}
+
+func (r *Router) MustUseIP(outbound adapter.Outbound, network string) bool {
+	tag := O.RealOutboundTag(outbound, network)
+	detour, _ := r.Outbound(tag)
+	d, ok := detour.(adapter.OutboundUseIP)
+	if !ok {
+		return false
+	}
+	return d.UseIP()
 }
 
 func (r *Router) InterfaceFinder() control.InterfaceFinder {

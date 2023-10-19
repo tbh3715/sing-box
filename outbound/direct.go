@@ -20,8 +20,9 @@ import (
 )
 
 var (
-	_ adapter.Outbound = (*Direct)(nil)
-	_ N.ParallelDialer = (*Direct)(nil)
+	_ adapter.Outbound      = (*Direct)(nil)
+	_ adapter.OutboundUseIP = (*Direct)(nil)
+	_ N.ParallelDialer      = (*Direct)(nil)
 )
 
 type Direct struct {
@@ -155,6 +156,10 @@ func (h *Direct) NewConnection(ctx context.Context, conn net.Conn, metadata adap
 
 func (h *Direct) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return NewPacketConnection(ctx, h, conn, metadata)
+}
+
+func (h *Direct) UseIP() bool {
+	return true
 }
 
 type overridePacketConn struct {
