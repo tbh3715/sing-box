@@ -88,6 +88,15 @@
         "outbound": [
           "direct"
         ],
+        "fallback_rule": {
+          "ipcidr": [
+            "10.0.0.0/24"
+          ],
+          "geoip": [
+            "cn"
+          ],
+          "invert": false
+        },
         "server": "local",
         "disable_cache": false
       },
@@ -95,6 +104,15 @@
         "type": "logical",
         "mode": "and",
         "rules": [],
+        "fallback_rule": {
+          "ipcidr": [
+            "10.0.0.0/24"
+          ],
+          "geoip": [
+            "cn"
+          ],
+          "invert": false
+        },
         "server": "local",
         "disable_cache": false
       }
@@ -254,6 +272,10 @@ DNS 查询类型。值可以为整数或者类型名称字符串。
 匹配出站。
 
 `any` 可作为值用于匹配任意出站。
+
+#### fallback_rule
+
+匹配回落规则。
 
 #### server
 

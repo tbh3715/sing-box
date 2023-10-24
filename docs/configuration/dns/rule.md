@@ -89,6 +89,15 @@
         "outbound": [
           "direct"
         ],
+        "fallback_rule": {
+          "ipcidr": [
+            "10.0.0.0/24"
+          ],
+          "geoip": [
+            "cn"
+          ],
+          "invert": false
+        },
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100
@@ -97,6 +106,15 @@
         "type": "logical",
         "mode": "and",
         "rules": [],
+        "fallback_rule": {
+          "ipcidr": [
+            "10.0.0.0/24"
+          ],
+          "geoip": [
+            "cn"
+          ],
+          "invert": false
+        },
         "server": "local",
         "disable_cache": false,
         "rewrite_ttl": 100
@@ -259,6 +277,10 @@ Invert match result.
 Match outbound.
 
 `any` can be used as a value to match any outbound.
+
+#### fallback_rule
+
+Fallback when matched.
 
 #### server
 

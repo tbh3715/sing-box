@@ -33,8 +33,14 @@ func NewDNSRule(router adapter.Router, logger log.ContextLogger, options option.
 
 var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
+type FallBackRule struct {
+	destinationAddressItems []RuleItem
+	invert                  bool
+}
+
 type DefaultDNSRule struct {
 	abstractDefaultRule
+	fallBackRule FallBackRule
 	disableCache bool
 	rewriteTTL   *uint32
 }
@@ -44,6 +50,9 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		abstractDefaultRule: abstractDefaultRule{
 			invert:   options.Invert,
 			outbound: options.Server,
+		},
+		fallBackRule: FallBackRule{
+			invert: options.FallBackRule.Invert,
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
@@ -190,6 +199,17 @@ func NewDefaultDNSRule(router adapter.Router, logger log.ContextLogger, options 
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if len(options.FallBackRule.GeoIP) > 0 {
+		item := NewGeoIPItem(router, logger, false, options.FallBackRule.GeoIP)
+		rule.fallBackRule.destinationAddressItems = append(rule.fallBackRule.destinationAddressItems, item)
+	}
+	if len(options.FallBackRule.IPCIDR) > 0 {
+		item, err := NewIPCIDRItem(false, options.FallBackRule.IPCIDR)
+		if err != nil {
+			return nil, E.Cause(err, "ipcidr")
+		}
+		rule.fallBackRule.destinationAddressItems = append(rule.fallBackRule.destinationAddressItems, item)
+	}
 	return rule, nil
 }
 
@@ -201,10 +221,24 @@ func (r *DefaultDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
 }
 
+func (r *DefaultDNSRule) MatchFallback(metadata *adapter.InboundContext) bool {
+	fallbackItem := r.fallBackRule.destinationAddressItems
+	if len(fallbackItem) == 0 {
+		return false
+	}
+	for _, item := range fallbackItem {
+		if item.Match(metadata) {
+			return !r.fallBackRule.invert
+		}
+	}
+	return r.fallBackRule.invert
+}
+
 var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
 
 type LogicalDNSRule struct {
 	abstractLogicalRule
+	fallBackRule FallBackRule
 	disableCache bool
 	rewriteTTL   *uint32
 }
@@ -215,6 +249,9 @@ func NewLogicalDNSRule(router adapter.Router, logger log.ContextLogger, options 
 			rules:    make([]adapter.Rule, len(options.Rules)),
 			invert:   options.Invert,
 			outbound: options.Server,
+		},
+		fallBackRule: FallBackRule{
+			invert: options.FallBackRule.Invert,
 		},
 		disableCache: options.DisableCache,
 		rewriteTTL:   options.RewriteTTL,
@@ -243,4 +280,17 @@ func (r *LogicalDNSRule) DisableCache() bool {
 
 func (r *LogicalDNSRule) RewriteTTL() *uint32 {
 	return r.rewriteTTL
+}
+
+func (r *LogicalDNSRule) MatchFallback(metadata *adapter.InboundContext) bool {
+	fallbackItem := r.fallBackRule.destinationAddressItems
+	if len(fallbackItem) == 0 {
+		return false
+	}
+	for _, item := range fallbackItem {
+		if item.Match(metadata) {
+			return !r.fallBackRule.invert
+		}
+	}
+	return r.fallBackRule.invert
 }
