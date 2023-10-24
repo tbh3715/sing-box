@@ -53,6 +53,12 @@ func (r *DNSRule) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+type FallBackRule struct {
+	IPCIDR Listable[string] `json:"ipcidr,omitempty"`
+	GeoIP  Listable[string] `json:"geoip,omitempty"`
+	Invert bool             `json:"invert,omitempty"`
+}
+
 type DefaultDNSRule struct {
 	Inbound         Listable[string]       `json:"inbound,omitempty"`
 	IPVersion       int                    `json:"ip_version,omitempty"`
@@ -81,6 +87,7 @@ type DefaultDNSRule struct {
 	WIFISSID        Listable[string]       `json:"wifi_ssid,omitempty"`
 	WIFIBSSID       Listable[string]       `json:"wifi_bssid,omitempty"`
 	Invert          bool                   `json:"invert,omitempty"`
+	FallBackRule    FallBackRule           `json:"fallback_rule,omitempty"`
 	Server          string                 `json:"server,omitempty"`
 	DisableCache    bool                   `json:"disable_cache,omitempty"`
 	RewriteTTL      *uint32                `json:"rewrite_ttl,omitempty"`
@@ -99,6 +106,7 @@ type LogicalDNSRule struct {
 	Mode         string           `json:"mode"`
 	Rules        []DefaultDNSRule `json:"rules,omitempty"`
 	Invert       bool             `json:"invert,omitempty"`
+	FallBackRule FallBackRule     `json:"fallback_rule,omitempty"`
 	Server       string           `json:"server,omitempty"`
 	DisableCache bool             `json:"disable_cache,omitempty"`
 	RewriteTTL   *uint32          `json:"rewrite_ttl,omitempty"`
