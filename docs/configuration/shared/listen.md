@@ -11,6 +11,7 @@
   "detour": "another-in",
   "sniff": false,
   "sniff_override_destination": false,
+  "sniff_override_rules": [],
   "sniff_timeout": "300ms",
   "domain_strategy": "prefer_ipv6",
   "udp_disable_domain_unmapping": false
@@ -75,6 +76,14 @@ See [Protocol Sniff](/configuration/route/sniff/) for details.
 Override the connection destination address with the sniffed domain.
 
 If the domain name is invalid (like tor), this will not work.
+
+#### sniff_override_rules
+
+Pick up the connection that will be overrided destination address with the sniffed domain by rules.
+
+If the domain name is invalid (like tor), this will not work.
+
+See [Sniff Override Rule](/configuration/shared/sniff_override_rules/) for details.
 
 #### sniff_timeout
 

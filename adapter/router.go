@@ -76,6 +76,10 @@ type DNSRule interface {
 	RewriteTTL() *uint32
 }
 
+type SniffOverrideRule interface {
+	Rule
+}
+
 type InterfaceUpdateListener interface {
 	InterfaceUpdated()
 }

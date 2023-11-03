@@ -50,6 +50,7 @@ type Router struct {
 	ctx                                context.Context
 	logger                             log.ContextLogger
 	dnsLogger                          log.ContextLogger
+	overrideLogger                     log.ContextLogger
 	inboundByTag                       map[string]adapter.Inbound
 	outbounds                          []adapter.Outbound
 	outboundByTag                      map[string]adapter.Outbound
@@ -57,8 +58,6 @@ type Router struct {
 	defaultDetour                      string
 	defaultOutboundForConnection       adapter.Outbound
 	defaultOutboundForPacketConnection adapter.Outbound
-	needGeoIPDatabase                  bool
-	needGeositeDatabase                bool
 	geoIPOptions                       option.GeoIPOptions
 	geositeOptions                     option.GeositeOptions
 	geoIPReader                        *geoip.Reader
@@ -67,6 +66,7 @@ type Router struct {
 	dnsClient                          *dns.Client
 	defaultDomainStrategy              dns.DomainStrategy
 	dnsRules                           []adapter.DNSRule
+	sniffOverrideRules                 map[string][]adapter.SniffOverrideRule
 	defaultTransport                   dns.Transport
 	transports                         []dns.Transport
 	transportMap                       map[string]dns.Transport
@@ -103,11 +103,11 @@ func NewRouter(
 		ctx:                   ctx,
 		logger:                logFactory.NewLogger("router"),
 		dnsLogger:             logFactory.NewLogger("dns"),
+		overrideLogger:        logFactory.NewLogger("override"),
 		outboundByTag:         make(map[string]adapter.Outbound),
 		rules:                 make([]adapter.Rule, 0, len(options.Rules)),
 		dnsRules:              make([]adapter.DNSRule, 0, len(dnsOptions.Rules)),
-		needGeoIPDatabase:     hasRule(options.Rules, isGeoIPRule) || hasDNSRule(dnsOptions.Rules, isGeoIPDNSRule),
-		needGeositeDatabase:   hasRule(options.Rules, isGeositeRule) || hasDNSRule(dnsOptions.Rules, isGeositeDNSRule),
+		sniffOverrideRules:    make(map[string][]adapter.SniffOverrideRule),
 		geoIPOptions:          common.PtrValueOrDefault(options.GeoIP),
 		geositeOptions:        common.PtrValueOrDefault(options.Geosite),
 		geositeCache:          make(map[string]adapter.Rule),
@@ -140,7 +140,6 @@ func NewRouter(
 		}
 		router.dnsRules = append(router.dnsRules, dnsRule)
 	}
-
 	transports := make([]dns.Transport, len(dnsOptions.Servers))
 	dummyTransportMap := make(map[string]dns.Transport)
 	transportMap := make(map[string]dns.Transport)
@@ -426,17 +425,13 @@ func (r *Router) Outbounds() []adapter.Outbound {
 }
 
 func (r *Router) Start() error {
-	if r.needGeoIPDatabase {
-		err := r.prepareGeoIPDatabase()
-		if err != nil {
-			return err
-		}
+	err := r.prepareGeoIPDatabase()
+	if err != nil {
+		return err
 	}
-	if r.needGeositeDatabase {
-		err := r.prepareGeositeDatabase()
-		if err != nil {
-			return err
-		}
+	err = r.prepareGeositeDatabase()
+	if err != nil {
+		return err
 	}
 	if r.interfaceMonitor != nil {
 		err := r.interfaceMonitor.Start()
@@ -456,25 +451,17 @@ func (r *Router) Start() error {
 			return err
 		}
 	}
-	if r.needGeositeDatabase {
-		for _, rule := range r.rules {
-			err := rule.UpdateGeosite()
-			if err != nil {
-				r.logger.Error("failed to initialize geosite: ", err)
-			}
-		}
-		for _, rule := range r.dnsRules {
-			err := rule.UpdateGeosite()
-			if err != nil {
-				r.logger.Error("failed to initialize geosite: ", err)
-			}
-		}
-		err := common.Close(r.geositeReader)
+	for _, rule := range r.rules {
+		err := rule.UpdateGeosite()
 		if err != nil {
-			return err
+			r.logger.Error("failed to initialize geosite: ", err)
 		}
-		r.geositeCache = nil
-		r.geositeReader = nil
+	}
+	for _, rule := range r.dnsRules {
+		err := rule.UpdateGeosite()
+		if err != nil {
+			r.logger.Error("failed to initialize geosite: ", err)
+		}
 	}
 	if r.needWIFIState {
 		r.updateWIFIState()
@@ -509,6 +496,7 @@ func (r *Router) Start() error {
 			return E.Cause(err, "initialize time service")
 		}
 	}
+	r.geositeCache = nil
 	return nil
 }
 
@@ -536,6 +524,12 @@ func (r *Router) Close() error {
 		r.logger.Trace("closing geoip reader")
 		err = E.Append(err, common.Close(r.geoIPReader), func(err error) error {
 			return E.Cause(err, "close geoip reader")
+		})
+	}
+	if r.geositeReader != nil {
+		r.logger.Trace("closing geosite reader")
+		err = E.Append(err, common.Close(r.geositeReader), func(err error) error {
+			return E.Cause(err, "close geosite reader")
 		})
 	}
 	if r.interfaceMonitor != nil {
@@ -652,9 +646,12 @@ func (r *Router) RouteConnection(ctx context.Context, conn net.Conn, metadata ad
 			metadata.Protocol = sniffMetadata.Protocol
 			metadata.Domain = sniffMetadata.Domain
 			if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
-				metadata.Destination = M.Socksaddr{
-					Fqdn: metadata.Domain,
-					Port: metadata.Destination.Port,
+				overrideFlag := r.matchSniffOverride(ctx, &metadata)
+				if overrideFlag {
+					metadata.Destination = M.Socksaddr{
+						Fqdn: metadata.Domain,
+						Port: metadata.Destination.Port,
+					}
 				}
 			}
 			if metadata.Domain != "" {
@@ -777,9 +774,12 @@ func (r *Router) RoutePacketConnection(ctx context.Context, conn N.PacketConn, m
 				metadata.Protocol = sniffMetadata.Protocol
 				metadata.Domain = sniffMetadata.Domain
 				if metadata.InboundOptions.SniffOverrideDestination && M.IsDomainName(metadata.Domain) {
-					metadata.Destination = M.Socksaddr{
-						Fqdn: metadata.Domain,
-						Port: metadata.Destination.Port,
+					overrideFlag := r.matchSniffOverride(ctx, &metadata)
+					if overrideFlag {
+						metadata.Destination = M.Socksaddr{
+							Fqdn: metadata.Domain,
+							Port: metadata.Destination.Port,
+						}
 					}
 				}
 				if metadata.Domain != "" {
