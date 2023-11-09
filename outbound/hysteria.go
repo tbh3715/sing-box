@@ -5,7 +5,6 @@ package outbound
 import (
 	"context"
 	"net"
-	"os"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -24,6 +23,7 @@ import (
 
 var (
 	_ adapter.Outbound                = (*TUIC)(nil)
+	_ adapter.OutboundRelay           = (*TUIC)(nil)
 	_ adapter.InterfaceUpdateListener = (*TUIC)(nil)
 )
 
@@ -128,12 +128,4 @@ func (h *Hysteria) NewConnection(ctx context.Context, conn net.Conn, metadata ad
 
 func (h *Hysteria) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext) error {
 	return NewPacketConnection(ctx, h, conn, metadata)
-}
-
-func (h *Hysteria) InterfaceUpdated() error {
-	return h.client.CloseWithError(E.New("network changed"))
-}
-
-func (h *Hysteria) Close() error {
-	return h.client.CloseWithError(os.ErrClosed)
 }
