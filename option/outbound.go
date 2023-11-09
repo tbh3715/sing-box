@@ -27,6 +27,7 @@ type _Outbound struct {
 	Hysteria2Options    Hysteria2OutboundOptions    `json:"-"`
 	SelectorOptions     SelectorOutboundOptions     `json:"-"`
 	URLTestOptions      URLTestOutboundOptions      `json:"-"`
+	RelayOptions        RelayOutboundOptions        `json:"-"`
 }
 
 type Outbound _Outbound
@@ -70,6 +71,8 @@ func (h Outbound) MarshalJSON() ([]byte, error) {
 		v = h.SelectorOptions
 	case C.TypeURLTest:
 		v = h.URLTestOptions
+	case C.TypeRelay:
+		v = h.RelayOptions
 	default:
 		return nil, E.New("unknown outbound type: ", h.Type)
 	}
@@ -119,6 +122,8 @@ func (h *Outbound) UnmarshalJSON(bytes []byte) error {
 		v = &h.SelectorOptions
 	case C.TypeURLTest:
 		v = &h.URLTestOptions
+	case C.TypeRelay:
+		v = &h.RelayOptions
 	default:
 		return E.New("unknown outbound type: ", h.Type)
 	}

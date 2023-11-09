@@ -48,6 +48,11 @@ type URLTestGroup interface {
 	URLTest(ctx context.Context, url string) (map[string]uint16, error)
 }
 
+type RelayGroup interface {
+	OutboundGroup
+	IsRelay() bool
+}
+
 func OutboundTag(detour Outbound) string {
 	if group, isGroup := detour.(OutboundGroup); isGroup {
 		return group.Now()

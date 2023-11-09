@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"reflect"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -250,4 +251,18 @@ func (w *WireGuard) Close() error {
 
 func (w *WireGuard) UseIP() bool {
 	return true
+}
+
+func (w *WireGuard) SetRelay(detour N.Dialer) adapter.Outbound {
+	c := *w.bind
+	client := c
+	r := reflect.ValueOf(client)
+	r.FieldByName("dialer").Set(reflect.ValueOf(detour))
+	outbound := WireGuard{
+		myOutboundAdapter: w.myOutboundAdapter,
+		bind:              &client,
+		device:            w.device,
+		tunDevice:         w.tunDevice,
+	}
+	return &outbound
 }

@@ -36,6 +36,7 @@
 | `dns`          | [DNS](./dns)                   |
 | `selector`     | [Selector](./selector)         |
 | `urltest`      | [URLTest](./urltest)           |
+| `relay`        | [Relay](./relay)               |
 
 #### tag
 

@@ -39,3 +39,8 @@ type URLTestOutboundOptions struct {
 	Tolerance                 uint16   `json:"tolerance,omitempty"`
 	InterruptExistConnections bool     `json:"interrupt_exist_connections,omitempty"`
 }
+
+type RelayOutboundOptions struct {
+	Outbounds                 []string `json:"outbounds"`
+	InterruptExistConnections bool     `json:"interrupt_exist_connections,omitempty"`
+}
