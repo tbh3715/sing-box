@@ -124,6 +124,7 @@ type InboundOptions struct {
 	SniffOverrideDestination  bool           `json:"sniff_override_destination,omitempty"`
 	SniffTimeout              Duration       `json:"sniff_timeout,omitempty"`
 	DomainStrategy            DomainStrategy `json:"domain_strategy,omitempty"`
+	AlwaysResolveUDP          bool           `json:"always_resolve_udp,omitempty"`
 	UDPDisableDomainUnmapping bool           `json:"udp_disable_domain_unmapping,omitempty"`
 }
 
